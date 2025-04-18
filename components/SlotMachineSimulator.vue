@@ -14,7 +14,9 @@
 </template>
 
 <script>
-import { Chart } from "chart.js";
+import { Chart, registerables } from "chart.js";
+
+Chart.register(...registerables); // Register all necessary components for Chart.js
 
 export default {
   name: "SlotMachineSimulator",
@@ -24,7 +26,6 @@ export default {
       risk: 100,
       balanceHistory: [500],
       balanceChart: null,
-      reelSymbols: ["A", "B", "C", "X", "Y", "Z", "1", "2", "3"],
     };
   },
   mounted() {
@@ -121,25 +122,13 @@ export default {
       this.balance = Math.max(0, this.balance + netChange);
       this.balanceHistory.push(this.balance);
       this.updateChart(netChange);
-      this.spinReels();
     },
-    spinReels() {
-      const reelElements = document.querySelectorAll(".reel-text");
-      reelElements.forEach((reel) => {
-        reel.classList.add("spinning");
-        setTimeout(() => {
-          reel.classList.remove("spinning");
-          reel.textContent =
-            this.reelSymbols[
-              Math.floor(Math.random() * this.reelSymbols.length)
-            ];
-        }, 700);
-      });
-    },
+
   },
 };
 </script>
 
 <style scoped>
-/* ...existing CSS styles from the prompt... */
+
 </style>
+  
