@@ -26,16 +26,16 @@ export default {
       align-items: center;
       min-height: 100vh;
       margin: 0;
-      padding: 20px;
+      padding: 0; /* Remove padding for full-screen fit */
       box-sizing: border-box;
       height: 100vh;
       overflow: hidden;
   }
   
   .container {
-      width: 90%;
-      max-width: 800px;
-      padding: 30px;
+      width: 100%; /* Stretch to full width */
+      height: 100%; /* Stretch to full height */
+      padding: 20px;
       background-color: #252525;
       border-radius: 12px;
       box-shadow: 0 8px 16px rgba(0,0,0,0.3);
@@ -43,7 +43,7 @@ export default {
       display: flex;
       flex-direction: column;
       justify-content: flex-start;
-      height: 100%;
+      align-items: center;
   }
   
   h1 {

@@ -7,16 +7,14 @@
       <p>K: Add 500 coins</p>
     </div>
     <h1>Balance History</h1>
-    <canvas id="balanceChart" width="400" height="200"></canvas>
+    <div id="balanceChart" class="chart"></div>
     <div id="balance" class="balance">Balance: {{ balance }}</div>
     <div id="risk" class="risk">Risk: {{ risk }}</div>
   </div>
 </template>
 
 <script>
-import { Chart, registerables } from "chart.js";
-
-Chart.register(...registerables); // Register all necessary components for Chart.js
+import * as echarts from "echarts";
 
 export default {
   name: "SlotMachineSimulator",
@@ -25,11 +23,13 @@ export default {
       balance: 500,
       risk: 100,
       balanceHistory: [500],
-      balanceChart: null,
+      chartInstance: null,
     };
   },
   mounted() {
-    this.initChart();
+    this.$nextTick(() => {
+      this.initChart();
+    });
     document.addEventListener("keydown", this.handleKeydown);
   },
   beforeUnmount() {
@@ -37,59 +37,69 @@ export default {
   },
   methods: {
     initChart() {
-      const ctx = document.getElementById("balanceChart").getContext("2d");
-      this.balanceChart = new Chart(ctx, {
-        type: "line",
-        data: {
-          labels: ["Initial"],
-          datasets: [
-            {
-              label: "Balance",
-              data: [this.balance],
-              borderColor: "rgb(75, 192, 192)",
-              tension: 0.1,
-            },
-            {
-              label: "Gain/Loss",
-              data: [],
-              type: "bar",
-              backgroundColor: [],
-            },
-          ],
+      const chartDom = document.getElementById("balanceChart");
+      this.chartInstance = echarts.init(chartDom);
+
+      const option = {
+        xAxis: {
+          type: "category",
+          data: ["Initial"],
+          axisLabel: { color: "#777" },
+          axisLine: { lineStyle: { color: "#444" } },
         },
-        options: {
-          scales: {
-            y: {
-              beginAtZero: true,
-              ticks: { color: "#777" },
-              grid: { color: "#444" },
-            },
-            x: {
-              ticks: { color: "#777" },
-              grid: { color: "#444" },
+        yAxis: {
+          type: "value",
+          axisLabel: { color: "#777" },
+          axisLine: { lineStyle: { color: "#444" } },
+          splitLine: { lineStyle: { color: "#444" } },
+        },
+        series: [
+          {
+            name: "Balance",
+            type: "line",
+            data: [this.balance],
+            lineStyle: { color: "rgb(75, 192, 192)" },
+          },
+          {
+            name: "Gain/Loss",
+            type: "bar",
+            data: [],
+            itemStyle: {
+              color: (params) =>
+                params.value >= 0 ? "rgba(0, 255, 0, 0.5)" : "rgba(255, 0, 0, 0.5)",
             },
           },
-          plugins: {
-            legend: { display: false },
-          },
-        },
-      });
+        ],
+      };
+
+      this.chartInstance.setOption(option);
     },
     updateChart(netChange) {
-      if (this.balanceChart.data.labels.length > 200) {
-        this.balanceChart.data.labels.shift();
-        this.balanceChart.data.datasets[0].data.shift();
-        this.balanceChart.data.datasets[1].data.shift();
-        this.balanceChart.data.datasets[1].backgroundColor.shift();
+      console.log("Updating chart with netChange:", netChange);
+      console.log("Current balance:", this.balance);
+
+      const option = this.chartInstance.getOption();
+      const labels = option.xAxis[0].data;
+      const balanceData = option.series[0].data;
+      const gainLossData = option.series[1].data;
+
+      if (labels.length > 200) {
+        labels.shift();
+        balanceData.shift();
+        gainLossData.shift();
       }
 
-      this.balanceChart.data.labels.push(this.balanceHistory.length.toString());
-      this.balanceChart.data.datasets[0].data.push(this.balance);
-      this.balanceChart.data.datasets[1].data.push(netChange);
-      this.balanceChart.data.datasets[1].backgroundColor.push(
-        netChange >= 0 ? "rgba(0, 255, 0, 0.5)" : "rgba(255, 0, 0, 0.5)"
-      );
-      this.balanceChart.update();
+      labels.push(this.balanceHistory.length.toString());
+      balanceData.push(this.balance);
+      gainLossData.push(netChange);
+
+      this.chartInstance.setOption({
+        xAxis: { data: labels },
+        series: [
+          { data: balanceData },
+          { data: gainLossData },
+        ],
+      });
     },
     handleKeydown(event) {
       if (event.key === " ") {
@@ -123,12 +133,43 @@ export default {
       this.balanceHistory.push(this.balance);
       this.updateChart(netChange);
     },
-
   },
 };
 </script>
 
 <style scoped>
+.container {
+  width: 100%;
+  height: 100%;
+  padding: 20px;
+  background-color: #252525;
+  border-radius: 12px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+}
 
+.chart {
+  width: 90%;
+  height: 60vh; /* Adjust height to occupy more screen space */
+  background-color: #333;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+h1 {
+  font-size: 3rem; /* Increase font size */
+  margin-bottom: 20px;
+  color: #eee;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.balance, .risk {
+  font-size: 1.5rem; /* Increase font size */
+  margin-bottom: 20px;
+  color: #ddd;
+}
 </style>
-  
