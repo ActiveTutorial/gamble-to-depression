@@ -21,23 +21,68 @@ export default defineComponent({
   name: "SlotMachineSimulator",
   data() {
     return {
-      balance: 500 as number, // Initial balance
-      risk: 100 as number, // Initial risk
-      balanceHistory: [500] as number[],
+      balance: 0 as number, // Initial balance
+      risk: 50 as number, // Initial risk
+      balanceHistory: [] as number[],
       chartInstance: null as echarts.ECharts | null,
     };
   },
-  mounted() {
-    // Initialize chart
+  async mounted() {
+    // Create session and fetch balance on mount
+    await this.createSession();
+    await this.getBalance();
     this.$nextTick(this.initChart);
-    // Add event listeners for keyboard controls
     document.addEventListener("keydown", this.handleKeydown);
   },
   beforeUnmount() {
-    // Clean up event listeners
     document.removeEventListener("keydown", this.handleKeydown);
   },
   methods: {
+    async createSession() {
+      try {
+        await $fetch("/api/session", {
+          method: "POST",
+        });
+      } catch (error) {
+        console.error("Error creating session:", error);
+      }
+    },
+    async getBalance() {
+      try {
+        const response = await $fetch<{ balance: number }>("/api/balance");
+        this.balance = response.balance;
+        this.balanceHistory = [this.balance];
+      } catch (error) {
+        console.error("Error fetching balance:", error);
+      }
+    },
+    async setBalance(newBalance: number) {
+      try {
+        await $fetch("/api/setbalance", {
+          method: "PUT",
+          body: { balance: newBalance },
+        });
+      } catch (error) {
+        console.error("Error setting balance:", error);
+      }
+    },
+    async spin() {
+      try {
+        const response = await $fetch<{ newBalance: number; netChange: number }>("/api/spin", {
+          method: "POST",
+          body: { balance: this.balance, risk: this.risk },
+        });
+
+        const { newBalance, netChange } = response;
+
+        // Update balance and history
+        this.balance = newBalance;
+        this.balanceHistory.push(this.balance);
+        this.updateChart(netChange);
+      } catch (error) {
+        console.error("Error during spin:", error);
+      }
+    },
     initChart() {
       // Set up the chart
       const chartDom = document.getElementById("balanceChart");
@@ -75,8 +120,8 @@ export default defineComponent({
             type: "bar",
             data: [],
             itemStyle: {
-              color: (params: { value: number }) =>
-                params.value >= 0
+              color: (params: any) =>
+                typeof params.value === "number" && params.value >= 0
                   ? "rgba(0, 255, 0, 0.5)"
                   : "rgba(255, 0, 0, 0.5)",
             },
@@ -87,10 +132,11 @@ export default defineComponent({
     updateChart(netChange: number) {
       // Get chart options
       if (!this.chartInstance) return;
-      const option = this.chartInstance.getOption();
-      const labels = option.xAxis[0].data as string[];
-      const balanceData = option.series[0].data as number[];
-      const gainLossData = option.series[1].data as number[];
+      const option = this.chartInstance.getOption() as echarts.EChartsOption;
+      const xAxis = Array.isArray(option.xAxis) ? option.xAxis[0] : option.xAxis;
+      const labels = (xAxis?.type === "category" && Array.isArray((xAxis as any).data) ? (xAxis as any).data : []) as string[];
+      const balanceData = Array.isArray(option.series) && option.series[0]?.data ? (option.series[0].data as number[]) : [];
+      const gainLossData = Array.isArray(option.series) && option.series[1]?.data ? (option.series[1].data as number[]) : [];
 
       // Maximize the number of Joints to 50
       if (labels.length > 50) {
@@ -134,6 +180,7 @@ export default defineComponent({
       this.balance += amount;
       this.balanceHistory.push(this.balance);
       this.updateChart(amount);
+      this.setBalance(this.balance); // Update balance on the server
     },
     adjustRisk(amount: number) {
       // Minimum of 10 and maximum of balance
@@ -141,23 +188,6 @@ export default defineComponent({
         10,
         Math.min(this.balance, this.risk + amount)
       );
-    },
-    async spin() {
-      try {
-        const response = await $fetch<{ newBalance: number; netChange: number }>("/api/spin", {
-          method: "POST",
-          body: { balance: this.balance, risk: this.risk },
-        });
-
-        const { newBalance, netChange } = response;
-
-        // Update balance and history
-        this.balance = newBalance;
-        this.balanceHistory.push(this.balance);
-        this.updateChart(netChange);
-      } catch (error) {
-        console.error("Error during spin:", error);
-      }
     },
   },
 });

@@ -11,8 +11,15 @@
   },
   "dependencies": {
     "chart.js": "^4.4.9",
+    "connect-redis": "^8.0.2",
+    "cookie-session": "^2.1.0",
+    "dotenv": "^16.5.0",
     "echarts": "^5.6.0",
+    "express-session": "^1.18.1",
+    "h3-session": "^0.2.5",
+    "ioredis": "^5.6.1",
     "nuxt": "^3.16.2",
+    "redis": "^4.7.0",
     "vue": "^3.5.13",
     "vue-router": "^4.5.0"
   }
