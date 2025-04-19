@@ -13,17 +13,18 @@
   </div>
 </template>
 
-<script>
+<script lang="ts">
+import { defineComponent } from "vue";
 import * as echarts from "echarts";
 
-export default {
+export default defineComponent({
   name: "SlotMachineSimulator",
   data() {
     return {
-      balance: 500, // Initial balance
-      risk: 100, // Initial risk
-      balanceHistory: [500],
-      chartInstance: null,
+      balance: 500 as number, // Initial balance
+      risk: 100 as number, // Initial risk
+      balanceHistory: [500] as number[],
+      chartInstance: null as echarts.ECharts | null,
     };
   },
   mounted() {
@@ -40,13 +41,14 @@ export default {
     initChart() {
       // Set up the chart
       const chartDom = document.getElementById("balanceChart");
+      if (!chartDom) return;
       this.chartInstance = echarts.init(chartDom);
 
       // Set chart options
       const option = this.getChartOptions();
       this.chartInstance.setOption(option);
     },
-    getChartOptions() {
+    getChartOptions(): echarts.EChartsOption {
       // Return chart options
       return {
         xAxis: {
@@ -73,7 +75,7 @@ export default {
             type: "bar",
             data: [],
             itemStyle: {
-              color: (params) =>
+              color: (params: { value: number }) =>
                 params.value >= 0
                   ? "rgba(0, 255, 0, 0.5)"
                   : "rgba(255, 0, 0, 0.5)",
@@ -82,13 +84,13 @@ export default {
         ],
       };
     },
-    updateChart(netChange) {
+    updateChart(netChange: number) {
       // Get chart options
+      if (!this.chartInstance) return;
       const option = this.chartInstance.getOption();
-      // Update chart data
-      const labels = option.xAxis[0].data;
-      const balanceData = option.series[0].data;
-      const gainLossData = option.series[1].data;
+      const labels = option.xAxis[0].data as string[];
+      const balanceData = option.series[0].data as number[];
+      const gainLossData = option.series[1].data as number[];
 
       // Maximize the number of Joints to 50
       if (labels.length > 50) {
@@ -108,7 +110,7 @@ export default {
         series: [{ data: balanceData }, { data: gainLossData }],
       });
     },
-    handleKeydown(event) {
+    handleKeydown(event: KeyboardEvent) {
       switch (event.key) {
         case " ": // Spacebar spin
           event.preventDefault();
@@ -127,38 +129,38 @@ export default {
           break;
       }
     },
-    addCoins(amount) {
+    addCoins(amount: number) {
       // Add coins to balance and update chart
       this.balance += amount;
       this.balanceHistory.push(this.balance);
       this.updateChart(amount);
     },
-    adjustRisk(amount) {
+    adjustRisk(amount: number) {
       // Minimum of 10 and maximum of balance
-      this.risk = Math.max(10,
+      this.risk = Math.max(
+        10,
         Math.min(this.balance, this.risk + amount)
       );
     },
-    spin() {
-      // Prevent negative balance
-      const maxChange = Math.min(this.balance, this.risk);
-      const randomNumber = Math.random();
-      const expectedLoss = -2; // Just enough to not be noticeable
-      // Adjust the random number to be between -1 and 1
-      const adjustedRandomNumber = (randomNumber - 0.5) * 2;
-      // Calculate the net change
-      const netChange = Math.round(
-        adjustedRandomNumber * maxChange + expectedLoss
-      );
+    async spin() {
+      try {
+        const response = await $fetch<{ newBalance: number; netChange: number }>("/api/spin", {
+          method: "POST",
+          body: { balance: this.balance, risk: this.risk },
+        });
 
-      // Update balance and history
-      // Prevent negative balance
-      this.balance = Math.max(0, this.balance + netChange);
-      this.balanceHistory.push(this.balance);
-      this.updateChart(netChange);
+        const { newBalance, netChange } = response;
+
+        // Update balance and history
+        this.balance = newBalance;
+        this.balanceHistory.push(this.balance);
+        this.updateChart(netChange);
+      } catch (error) {
+        console.error("Error during spin:", error);
+      }
     },
   },
-};
+});
 </script>
 
 <style scoped>
