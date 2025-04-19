@@ -1,6 +1,6 @@
 <template>
   <div class="container">
-    <div class="controls-container">
+    <div v-if="!isMobile()" class="controls-container">
       <p>Controls:</p>
       <p>Spacebar: Spin</p>
       <p>Up/Down: Adjust Risk</p>
@@ -8,8 +8,21 @@
     </div>
     <h1>Get money fast</h1>
     <div id="balanceChart" class="chart"></div>
-    <div id="balance" class="balance">Balance: {{ balance }}</div>
-    <div id="risk" class="risk">Risk: {{ risk }}</div>
+    <!-- Mobile-only Spin button -->
+    <button v-if="isMobile()" class="spin-button" @click="spin">Spin!</button>
+    <div 
+      id="balance" 
+      class="balance" 
+      @click="isMobile() && addCoins(500)"
+    >
+      Balance: {{ balance }}
+    </div>
+    <div id="risk" class="risk">
+      Risk: {{ risk }}
+      <!-- Mobile-only risk adjustment buttons -->
+      <button v-if="isMobile()" class="risk-button" @click="adjustRisk(-50)">-</button>
+      <button v-if="isMobile()" class="risk-button" @click="adjustRisk(50)">+</button>
+    </div>
   </div>
 </template>
 
@@ -28,6 +41,7 @@ export default defineComponent({
     };
   },
   async mounted() {
+    (window as any).vue_context = this; // Expose Vue instance to the global scope for debugging
     // Create session and fetch balance on mount
     await this.establishSession();
     this.balance = await this.getBalance();
@@ -39,6 +53,9 @@ export default defineComponent({
     document.removeEventListener("keydown", this.handleKeydown);
   },
   methods: {
+    isMobile(): boolean {
+      return (navigator as any)?.userAgentData?.mobile;
+    },
     async establishSession() {
       try {
         await $fetch("/api/session", {
@@ -240,5 +257,43 @@ h1 {
   font-size: 1.5rem;
   margin-bottom: 20px;
   color: #ddd;
+}
+
+/* Styles for the mobile-only Spin button */
+.spin-button {
+  touch-action: manipulation; /* Prevent double-tap zoom on mobile */
+  width: 80%;
+  padding: 15px;
+  margin-bottom: 20px;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #fff;
+  background-color: #28a745;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.spin-button:active {
+  background-color: #218838;
+}
+
+/* Styles for the mobile-only risk adjustment buttons */
+.risk-button {
+  margin: 0 5px;
+  padding: 10px;
+  font-size: 1rem;
+  font-weight: bold;
+  color: #fff;
+  background-color: #007bff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  touch-action: manipulation; /* Prevent double-tap zoom on mobile */
+}
+
+.risk-button:active {
+  background-color: #0056b3;
 }
 </style>
