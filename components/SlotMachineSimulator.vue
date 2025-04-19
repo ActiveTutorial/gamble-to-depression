@@ -6,7 +6,7 @@
       <p>Up/Down: Adjust Risk</p>
       <p>K: Add 500 coins</p>
     </div>
-    <h1>Balance History</h1>
+    <h1>Get money fast</h1>
     <div id="balanceChart" class="chart"></div>
     <div id="balance" class="balance">Balance: {{ balance }}</div>
     <div id="risk" class="risk">Risk: {{ risk }}</div>
@@ -15,6 +15,7 @@
 
 <script>
 import * as echarts from "echarts";
+import _ from "lodash"; // Add lodash for debouncing
 
 export default {
   name: "SlotMachineSimulator",
@@ -24,23 +25,32 @@ export default {
       risk: 100,
       balanceHistory: [500],
       chartInstance: null,
+      debouncedUpdateChart: null, // Add debouncedUpdateChart to data
+      spinInterval: null, // Add spinInterval to manage repeated spins
     };
   },
   mounted() {
     this.$nextTick(() => {
       this.initChart();
+      this.debouncedUpdateChart = _.debounce(this.updateChart, 100); // Debounce updateChart
     });
     document.addEventListener("keydown", this.handleKeydown);
+    document.addEventListener("keyup", this.handleKeyup); // Add keyup listener
   },
   beforeUnmount() {
     document.removeEventListener("keydown", this.handleKeydown);
+    document.removeEventListener("keyup", this.handleKeyup); // Remove keyup listener
   },
   methods: {
     initChart() {
       const chartDom = document.getElementById("balanceChart");
       this.chartInstance = echarts.init(chartDom);
 
-      const option = {
+      const option = this.getChartOptions();
+      this.chartInstance.setOption(option);
+    },
+    getChartOptions() {
+      return {
         xAxis: {
           type: "category",
           data: ["Initial"],
@@ -66,18 +76,15 @@ export default {
             data: [],
             itemStyle: {
               color: (params) =>
-                params.value >= 0 ? "rgba(0, 255, 0, 0.5)" : "rgba(255, 0, 0, 0.5)",
+                params.value >= 0
+                  ? "rgba(0, 255, 0, 0.5)"
+                  : "rgba(255, 0, 0, 0.5)",
             },
           },
         ],
       };
-
-      this.chartInstance.setOption(option);
     },
     updateChart(netChange) {
-      console.log("Updating chart with netChange:", netChange);
-      console.log("Current balance:", this.balance);
-
       const option = this.chartInstance.getOption();
       const labels = option.xAxis[0].data;
       const balanceData = option.series[0].data;
@@ -95,30 +102,44 @@ export default {
 
       this.chartInstance.setOption({
         xAxis: { data: labels },
-        series: [
-          { data: balanceData },
-          { data: gainLossData },
-        ],
+        series: [{ data: balanceData }, { data: gainLossData }],
       });
     },
     handleKeydown(event) {
-      if (event.key === " ") {
-        event.preventDefault();
-        this.spin();
+      switch (event.key) {
+        case " ":
+          event.preventDefault();
+          if (!this.spinInterval) {
+            this.spin(); // Trigger an initial spin
+            this.spinInterval = setInterval(this.spin, 150); // Repeatedly call spin
+          }
+          break;
+        case "k":
+          this.addCoins(500);
+          break;
+        case "ArrowUp":
+          event.preventDefault();
+          this.adjustRisk(50);
+          break;
+        case "ArrowDown":
+          event.preventDefault();
+          this.adjustRisk(-50);
+          break;
       }
-      if (event.key === "k") {
-        this.balance += 500;
-        this.balanceHistory.push(this.balance);
-        this.updateChart(500);
+    },
+    handleKeyup(event) {
+      if (event.key === " " && this.spinInterval) {
+        clearInterval(this.spinInterval); // Stop repeated spins
+        this.spinInterval = null;
       }
-      if (event.key === "ArrowUp") {
-        event.preventDefault();
-        this.risk = Math.min(this.balance, this.risk + 50);
-      }
-      if (event.key === "ArrowDown") {
-        event.preventDefault();
-        this.risk = Math.max(10, this.risk - 50);
-      }
+    },
+    addCoins(amount) {
+      this.balance += amount;
+      this.balanceHistory.push(this.balance);
+      this.updateChart(amount);
+    },
+    adjustRisk(amount) {
+      this.risk = Math.max(10, Math.min(this.balance, this.risk + amount));
     },
     spin() {
       const maxChange = Math.min(this.balance, this.risk);
@@ -131,7 +152,7 @@ export default {
 
       this.balance = Math.max(0, this.balance + netChange);
       this.balanceHistory.push(this.balance);
-      this.updateChart(netChange);
+      this.debouncedUpdateChart(netChange); // Use debounced method
     },
   },
 };
@@ -154,21 +175,22 @@ export default {
 
 .chart {
   width: 90%;
-  height: 60vh; /* Adjust height to occupy more screen space */
+  height: 60vh;
   background-color: #333;
   border-radius: 8px;
   margin-bottom: 20px;
 }
 
 h1 {
-  font-size: 3rem; /* Increase font size */
+  font-size: 3rem;
   margin-bottom: 20px;
   color: #eee;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
 }
 
-.balance, .risk {
-  font-size: 1.5rem; /* Increase font size */
+.balance,
+.risk {
+  font-size: 1.5rem;
   margin-bottom: 20px;
   color: #ddd;
 }
