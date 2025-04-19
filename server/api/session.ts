@@ -1,14 +1,6 @@
 import { H3Event, setCookie, getCookie } from "h3";
 import { v4 as uuidv4 } from "uuid";
-import Redis from "ioredis";
-import { redisConfig } from "../config";
-
-const redis = new Redis({
-  username: redisConfig.username,
-  password: redisConfig.password,
-  host: redisConfig.host,
-  port: redisConfig.port,
-});
+import redis from "../redis";
 
 export default defineEventHandler(async (event: H3Event) => {
   // Check if session ID already exists
@@ -23,7 +15,7 @@ export default defineEventHandler(async (event: H3Event) => {
   const sessionData = await redis.get(sessionId);
   if (!sessionData) {
     // Initialize session with default balance
-    const initialBalance = 1000;
+    const initialBalance = 0;
     await redis.set(sessionId, JSON.stringify({ balance: initialBalance }), "EX", 3600);
   }
 

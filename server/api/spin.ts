@@ -1,14 +1,5 @@
-import { H3Event, setCookie, getCookie } from "h3";
-import { v4 as uuidv4 } from "uuid";
-import Redis from "ioredis";
-import { redisConfig } from "../config";
-
-const redis = new Redis({
-  username: redisConfig.username,
-  password: redisConfig.password,
-  host: redisConfig.host,
-  port: redisConfig.port,
-});
+import { H3Event, getCookie } from "h3";
+import redis from "../redis";
 
 interface SpinRequestBody {
   balance: number;
@@ -35,19 +26,16 @@ export default defineEventHandler(async (event: H3Event): Promise<SpinResponse> 
 
   const session = JSON.parse(sessionData);
   const body = await readBody<SpinRequestBody>(event);
-  let { balance, risk } = body;
-
-  // Check if the balance in the request matches the stored balance
-  if (balance !== session.balance) {
-    //throw new Error("Balance mismatch between client and server");
-    balance = session.balance; // Use the stored balance
-  }
+  const { risk } = body;
+  const balance = session.balance;
 
   // Prevent negative balance
   const maxChange = Math.min(balance, risk);
+  // Get a random number between -1 and 1
   const randomNumber = Math.random();
   const expectedLoss = -2;
   const adjustedRandomNumber = (randomNumber - 0.5) * 2;
+  // Calculate net change based on risk
   const netChange = Math.round(adjustedRandomNumber * maxChange + expectedLoss);
 
   // Update session balance

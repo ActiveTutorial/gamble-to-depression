@@ -29,8 +29,9 @@ export default defineComponent({
   },
   async mounted() {
     // Create session and fetch balance on mount
-    await this.createSession();
-    await this.getBalance();
+    await this.establishSession();
+    this.balance = await this.getBalance();
+    this.balanceHistory = [this.balance];
     this.$nextTick(this.initChart);
     document.addEventListener("keydown", this.handleKeydown);
   },
@@ -38,7 +39,7 @@ export default defineComponent({
     document.removeEventListener("keydown", this.handleKeydown);
   },
   methods: {
-    async createSession() {
+    async establishSession() {
       try {
         await $fetch("/api/session", {
           method: "POST",
@@ -49,16 +50,18 @@ export default defineComponent({
     },
     async getBalance() {
       try {
-        const response = await $fetch<{ balance: number }>("/api/balance");
-        this.balance = response.balance;
-        this.balanceHistory = [this.balance];
+        const response = await $fetch<{ balance: number }>("/api/balance", {
+          method: "GET",
+        });
+        return response.balance;
       } catch (error) {
         console.error("Error fetching balance:", error);
+        return 0; // Default to 0 in case of error
       }
     },
     async setBalance(newBalance: number) {
       try {
-        await $fetch("/api/setbalance", {
+        await $fetch("/api/balance", {
           method: "PUT",
           body: { balance: newBalance },
         });
@@ -70,7 +73,7 @@ export default defineComponent({
       try {
         const response = await $fetch<{ newBalance: number; netChange: number }>("/api/spin", {
           method: "POST",
-          body: { balance: this.balance, risk: this.risk },
+          body: { risk: this.risk },
         });
 
         const { newBalance, netChange } = response;
@@ -131,12 +134,21 @@ export default defineComponent({
     },
     updateChart(netChange: number) {
       // Get chart options
-      if (!this.chartInstance) return;
-      const option = this.chartInstance.getOption() as echarts.EChartsOption;
+      if (!this.chartInstance) throw new Error("Chart instance is not initialized");
+
+      const option = this.chartInstance.getOption();
       const xAxis = Array.isArray(option.xAxis) ? option.xAxis[0] : option.xAxis;
-      const labels = (xAxis?.type === "category" && Array.isArray((xAxis as any).data) ? (xAxis as any).data : []) as string[];
-      const balanceData = Array.isArray(option.series) && option.series[0]?.data ? (option.series[0].data as number[]) : [];
-      const gainLossData = Array.isArray(option.series) && option.series[1]?.data ? (option.series[1].data as number[]) : [];
+      const labels = (
+        xAxis?.type === "category" &&
+        Array.isArray(xAxis.data) ?
+        xAxis.data : []
+      ) as string[];
+      const balanceData = Array.isArray(option.series) &&
+        option.series[0]?.data ?
+        (option.series[0].data as number[]) : [];
+      const gainLossData = Array.isArray(option.series) &&
+        option.series[1]?.data ? 
+        (option.series[1].data as number[]) : [];
 
       // Maximize the number of Joints to 50
       if (labels.length > 50) {
