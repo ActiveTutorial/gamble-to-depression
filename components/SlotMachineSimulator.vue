@@ -16,6 +16,14 @@
       @click="isMobile() && addCoins(500)"
     >
       Balance: {{ balance }}
+      <button class="plus-button" @click="showPopup = true">+</button>
+    </div>
+    <!-- Popup -->
+    <div v-if="showPopup" class="popup-overlay">
+      <div class="popup">
+        <button class="close-button" @click="showPopup = false">x</button>
+        <CryptoPayment />
+      </div>
     </div>
     <div id="risk" class="risk">
       Risk: {{ risk }}
@@ -29,15 +37,20 @@
 <script lang="ts">
 import { defineComponent } from "vue";
 import * as echarts from "echarts";
+import CryptoPayment from "./CryptoPayment.vue"; // Import the new component
 
 export default defineComponent({
   name: "SlotMachineSimulator",
+  components: {
+    CryptoPayment, // Register the component
+  },
   data() {
     return {
       balance: 0 as number, // Initial balance
       risk: 50 as number, // Initial risk
       balanceHistory: [] as number[],
       chartInstance: null as echarts.ECharts | null,
+      showPopup: false, // Controls the visibility of the popup
     };
   },
   async mounted() {
@@ -295,5 +308,76 @@ h1 {
 
 .risk-button:active {
   background-color: #0056b3;
+}
+
+.plus-button {
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: #fff;
+  background-color: #28a745;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  margin-left: 5px;
+  padding: 2px 6px;
+}
+
+.popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.popup {
+  background-color: #333;
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+  color: #fff;
+  position: relative;
+  width: 80%;
+  max-width: 400px;
+  max-height: 80vh; /* Fixed size */
+  overflow-y: auto; /* Make it scrollable */
+}
+
+/* Dark theme scrollbar */
+.popup::-webkit-scrollbar {
+  width: 8px;
+}
+
+.popup::-webkit-scrollbar-thumb {
+  background-color: #555;
+  border-radius: 4px;
+}
+
+.popup::-webkit-scrollbar-thumb:hover {
+  background-color: #777;
+}
+
+.popup::-webkit-scrollbar-track {
+  background-color: #222;
+}
+
+.close-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: transparent;
+  border: none;
+  color: #fff;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.close-button:hover {
+  color: #ccc;
 }
 </style>
