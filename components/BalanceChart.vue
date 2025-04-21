@@ -6,22 +6,8 @@
 
 <script lang="ts">
 import { defineComponent, ref, watch } from "vue";
-import { 
-  Chart as ChartJS, 
-  Title, 
-  Tooltip, 
-  Legend, 
-  BarElement, 
-  LineElement, 
-  PointElement, 
-  CategoryScale, 
-  LinearScale, 
-  BarController, 
-  LineController 
-} from "chart.js";
+import Chart from 'chart.js/auto';
 import { BarChart } from "vue-chart-3";
-
-ChartJS.register(Title, Tooltip, Legend, BarElement, LineElement, PointElement, CategoryScale, LinearScale, BarController, LineController);
 
 export default defineComponent({
   name: "BalanceChart",
