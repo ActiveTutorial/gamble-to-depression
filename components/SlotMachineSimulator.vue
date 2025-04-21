@@ -5,9 +5,10 @@
       <p>Spacebar: Spin</p>
       <p>Up/Down: Adjust Risk</p>
       <p>K: Add 500 coins</p>
+      <p>C: Clear Balance History</p>
     </div>
     <h1>Get money fast</h1>
-    <div id="balanceChart" class="chart"></div>
+    <BalanceChart :balanceHistory="balanceHistory" :netChange="netChange" />
     <!-- Mobile-only Spin button -->
     <button v-if="isMobile()" class="spin-button" @click="spin">Spin!</button>
     <div 
@@ -31,17 +32,22 @@
       <button v-if="isMobile()" class="risk-button" @click="adjustRisk(-50)">-</button>
       <button v-if="isMobile()" class="risk-button" @click="adjustRisk(50)">+</button>
     </div>
+    <!-- Mobile-only risk adjustment button -->
+    <button v-if="isMobile()" class="clear-history-button subtle-button" @click="clearBalanceHistory">
+      Clear History
+    </button>
   </div>
 </template>
 
 <script lang="ts">
 import { defineComponent } from "vue";
-import * as echarts from "echarts";
+import BalanceChart from "./BalanceChart.vue"; // Import the new component
 import CryptoPayment from "./CryptoPayment.vue"; // Import the new component
 
 export default defineComponent({
   name: "SlotMachineSimulator",
   components: {
+    BalanceChart, // Register the new component
     CryptoPayment, // Register the component
   },
   data() {
@@ -49,8 +55,8 @@ export default defineComponent({
       balance: 0 as number, // Initial balance
       risk: 50 as number, // Initial risk
       balanceHistory: [] as number[],
-      chartInstance: null as echarts.ECharts | null,
       showPopup: false, // Controls the visibility of the popup
+      netChange: 0 as number, // Track the net change for the chart
     };
   },
   async mounted() {
@@ -58,8 +64,11 @@ export default defineComponent({
     // Create session and fetch balance on mount
     await this.establishSession();
     this.balance = await this.getBalance();
-    this.balanceHistory = [this.balance];
-    this.$nextTick(this.initChart);
+
+    // Retrieve balance history from local storage
+    const storedHistory = localStorage.getItem("balanceHistory");
+    this.balanceHistory = storedHistory ? JSON.parse(storedHistory) : [this.balance];
+
     document.addEventListener("keydown", this.handleKeydown);
   },
   beforeUnmount() {
@@ -108,95 +117,13 @@ export default defineComponent({
 
         const { newBalance, netChange } = response;
 
-        // Update balance and history
         this.balance = newBalance;
         this.balanceHistory.push(this.balance);
-        this.updateChart(netChange);
+        localStorage.setItem("balanceHistory", JSON.stringify(this.balanceHistory)); // Save to local storage
+        this.netChange = netChange; // Update net change
       } catch (error) {
         console.error("Error during spin:", error);
       }
-    },
-    initChart() {
-      // Set up the chart
-      const chartDom = document.getElementById("balanceChart");
-      if (!chartDom) return;
-      this.chartInstance = echarts.init(chartDom);
-
-      // Set chart options
-      const option = this.getChartOptions();
-      this.chartInstance.setOption(option);
-    },
-    getChartOptions(): echarts.EChartsOption {
-      // Return chart options
-      return {
-        xAxis: {
-          type: "category",
-          data: ["Initial"],
-          axisLabel: { color: "#777" },
-          axisLine: { lineStyle: { color: "#444" } },
-        },
-        yAxis: {
-          type: "value",
-          axisLabel: { color: "#777" },
-          axisLine: { lineStyle: { color: "#444" } },
-          splitLine: { lineStyle: { color: "#444" } },
-        },
-        series: [
-          {
-            name: "Balance",
-            type: "line",
-            data: [this.balance],
-            lineStyle: { color: "rgb(75, 192, 192)" },
-          },
-          {
-            name: "Gain/Loss",
-            type: "bar",
-            data: [],
-            itemStyle: {
-              color: (params: any) =>
-                typeof params.value === "number" && params.value >= 0
-                  ? "rgba(0, 255, 0, 0.5)"
-                  : "rgba(255, 0, 0, 0.5)",
-            },
-          },
-        ],
-      };
-    },
-    updateChart(netChange: number) {
-      // Get chart options
-      if (!this.chartInstance) throw new Error("Chart instance is not initialized");
-
-      const option = this.chartInstance.getOption();
-      const xAxis = Array.isArray(option.xAxis) ? option.xAxis[0] : option.xAxis;
-      const labels = (
-        xAxis?.type === "category" &&
-        Array.isArray(xAxis.data) ?
-        xAxis.data : []
-      ) as string[];
-      const balanceData = Array.isArray(option.series) &&
-        option.series[0]?.data ?
-        (option.series[0].data as number[]) : [];
-      const gainLossData = Array.isArray(option.series) &&
-        option.series[1]?.data ? 
-        (option.series[1].data as number[]) : [];
-
-      // Maximize the number of Joints to 50
-      if (labels.length > 50) {
-        labels.shift();
-        balanceData.shift();
-        gainLossData.shift();
-      }
-
-      // Add new data
-      labels.push(this.balanceHistory.length.toString());
-      balanceData.push(this.balance);
-      gainLossData.push(netChange);
-
-      // Update chart with new data
-      this.chartInstance.setOption({
-        xAxis: { data: labels },
-        series: [{ data: balanceData }, { data: gainLossData }],
-      });
     },
     handleKeydown(event: KeyboardEvent) {
       switch (event.key) {
@@ -215,13 +142,16 @@ export default defineComponent({
           event.preventDefault();
           this.adjustRisk(-50);
           break;
+        case "c": // Clear balance history
+          this.clearBalanceHistory();
+          break;
       }
     },
     addCoins(amount: number) {
       // Add coins to balance and update chart
       this.balance += amount;
       this.balanceHistory.push(this.balance);
-      this.updateChart(amount);
+      localStorage.setItem("balanceHistory", JSON.stringify(this.balanceHistory)); // Save to local storage
       this.setBalance(this.balance); // Update balance on the server
     },
     adjustRisk(amount: number) {
@@ -230,6 +160,11 @@ export default defineComponent({
         10,
         Math.min(this.balance, this.risk + amount)
       );
+    },
+    clearBalanceHistory() {
+      this.balanceHistory = [];
+      localStorage.removeItem("balanceHistory"); // Clear from local storage
+      console.log("Balance history cleared");
     },
   },
 });
@@ -379,5 +314,47 @@ h1 {
 
 .close-button:hover {
   color: #ccc;
+}
+
+/* Styles for the mobile-only Clear History button */
+.clear-history-button {
+  touch-action: manipulation; /* Prevent double-tap zoom on mobile */
+  width: 80%;
+  padding: 15px;
+  margin-bottom: 20px;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #fff;
+  background-color: #dc3545;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.clear-history-button:active {
+  background-color: #c82333;
+}
+
+/* Subtle style for the mobile-only Clear History button */
+.subtle-button {
+  touch-action: manipulation; /* Prevent double-tap zoom on mobile */
+  width: auto;
+  padding: 5px 10px;
+  margin-top: 10px;
+  font-size: 0.9rem;
+  font-weight: normal;
+  color: #bbb;
+  background-color: transparent;
+  border: 1px solid #bbb;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.subtle-button:active {
+  color: #fff;
+  background-color: #444;
+  border-color: #444;
 }
 </style>
